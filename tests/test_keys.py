@@ -10,6 +10,8 @@ from servership.models import KeyPair, Server
 
 
 def fake_generate(args, **kwargs):
+    if '-y' in args:
+        return subprocess.CompletedProcess(args, 0, stdout='ssh-ed25519 AAAA fixture\n')
     if '-f' in args:
         path = Path(args[args.index('-f') + 1])
         path.write_text('fixture private')
