@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo '需要 root 权限' >&2; exit 1; }
+# shellcheck source=/dev/null
 source /etc/os-release
 case ${ID:-} in debian|ubuntu) ;; *) echo '仅支持 Debian / Ubuntu' >&2; exit 1;; esac
 for tool in apt-get dpkg-query systemctl getent ssh-keygen awk stat install mktemp; do
