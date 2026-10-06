@@ -93,3 +93,20 @@ def test_apt_lock_error_propagates():
     script = f'source "{ROOT}/common.sh"; apt-get() {{ echo "lock held" >&2; return 100; }}; apt_install fixture'
     result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
     assert result.returncode == 100 and 'lock held' in result.stderr
+
+
+def test_singbox_uses_canonical_official_repository_key():
+    script = f'''set -euo pipefail
+source "{ROOT}/common.sh"
+source "{ROOT}/installers/sing-box.sh"
+require_root() {{ :; }}
+detect_platform() {{ :; }}
+package_installed() {{ return 1; }}
+prepare_repo_tools() {{ :; }}
+command() {{ if [[ $1 == -v && $2 == sing-box ]]; then return 1; else builtin command "$@"; fi; }}
+curl() {{ printf '%s\\n' "$@"; return 42; }}
+install_sing_box
+'''
+    result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
+    assert result.returncode == 42
+    assert 'https://deb.sagernet.org/gpg.key' in result.stdout

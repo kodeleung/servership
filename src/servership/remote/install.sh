@@ -4,6 +4,8 @@ base=$(dirname "${BASH_SOURCE[0]}")
 # shellcheck source=common.sh
 source "$base/common.sh"
 require_root || exit 1
+trap 'exit 130' INT
+trap 'exit 143' TERM
 report=${1:?结果路径缺失}
 user=${2:?账号缺失}
 shift 2
@@ -20,6 +22,7 @@ chown "$uid:$gid" "$report" || exit 1
 failed=0
 for software in "$@"; do
     echo "安装检查：$software"
+    printf '%s\tfailed\t执行已开始，但尚未完成；可能已有部分变更\n' "$software" >> "$report"
     # Not in an if/|| context: failures inside an installer obey errexit.
     (
         set -e
@@ -35,6 +38,11 @@ for software in "$@"; do
         *) status=failed; detail="安装或验证失败（$code），详见终端输出"; failed=1;;
     esac
     if [[ $software == sing-box && $code == 0 ]]; then detail='已安装，待配置（未启动服务）'; fi
-    printf '%s\t%s\t%s\n' "$software" "$status" "$detail" >> "$report"
+    updated=$(mktemp "$(dirname "$report")/result.XXXXXXXX") || exit 1
+    sed '$d' "$report" > "$updated" || exit 1
+    printf '%s\t%s\t%s\n' "$software" "$status" "$detail" >> "$updated"
+    chmod 600 "$updated"
+    chown "$uid:$gid" "$updated" || exit 1
+    mv -- "$updated" "$report" || exit 1
 done
 exit "$failed"

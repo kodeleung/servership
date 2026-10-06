@@ -52,7 +52,7 @@ def test_symlink_rejected(tmp_path):
 
 
 def test_publickey_only_verification():
-    with patch('servership.keys.subprocess.run', return_value=subprocess.CompletedProcess([], 0)) as run:
+    with patch('servership.keys.subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout='hostname localhost\n')) as run:
         result = verify_access(Server('x', 'localhost'), KeyPair(Path('/tmp/key'), 'ssh-ed25519 AAAA'))
         assert result.status == 'success'
         args = run.call_args.args[0]

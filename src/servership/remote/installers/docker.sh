@@ -21,7 +21,7 @@ install_docker() {
     # Freeze the local path now; it leaves scope when the installer returns.
     # shellcheck disable=SC2064
     trap "$(printf 'rm -rf -- %q' "$work")" EXIT
-    curl --fail --silent --show-error --location --proto '=https' "https://download.docker.com/linux/$DIST_ID/gpg" -o "$work/docker.asc"
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --proto '=https' "https://download.docker.com/linux/$DIST_ID/gpg" -o "$work/docker.asc"
     repo_file "$work/docker.asc" /etc/apt/keyrings/servership-docker.asc
     printf 'Types: deb\nURIs: https://download.docker.com/linux/%s\nSuites: %s\nComponents: stable\nArchitectures: %s\nSigned-By: /etc/apt/keyrings/servership-docker.asc\n' "$DIST_ID" "$DIST_CODENAME" "$DIST_ARCH" > "$work/docker.sources"
     repo_file "$work/docker.sources" /etc/apt/sources.list.d/servership-docker.sources

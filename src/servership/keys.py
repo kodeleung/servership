@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from .models import KeyPair, Server, StepResult
-from .ssh import SSHClient
+from .ssh import SSHClient, _run
 
 
 def prepare_key(mode: str, path: Path) -> KeyPair:
@@ -49,9 +49,12 @@ def authorize(client: SSHClient, key: KeyPair) -> StepResult:
 
 def verify_access(server: Server, key: KeyPair) -> StepResult:
     client = SSHClient(server, key.private_path)
-    args = client.ssh_args()
-    # Insert before the host; a terminal remains available for private-key passphrases.
-    host = args.pop()
-    args += ['-o', 'PreferredAuthentications=publickey', '-o', 'PasswordAuthentication=no', '-o', 'KbdInteractiveAuthentication=no', host, 'true']
-    rc = subprocess.run(args).returncode
-    return StepResult('verify', 'success' if rc == 0 else 'failed', '新密钥登录验证通过' if rc == 0 else '公钥已添加，但新密钥登录失败；未安装软件')
+    try:
+        client.use_key(key)
+        args = client.ssh_args()
+        host = args.pop()
+        args += ['-o', 'PreferredAuthentications=publickey', '-o', 'PasswordAuthentication=no', '-o', 'KbdInteractiveAuthentication=no', host, 'true']
+        rc = _run(args).returncode
+        return StepResult('verify', 'success' if rc == 0 else 'failed', '新密钥登录验证通过' if rc == 0 else '公钥已添加，但新密钥登录失败；未安装软件')
+    finally:
+        client.close()

@@ -13,10 +13,10 @@ install_caddy() {
     # Freeze the local path now; it leaves scope when the installer returns.
     # shellcheck disable=SC2064
     trap "$(printf 'rm -rf -- %q' "$work")" EXIT
-    curl --fail --silent --show-error --location --proto '=https' https://dl.cloudsmith.io/public/caddy/stable/gpg.key -o "$work/key.asc"
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --proto '=https' https://dl.cloudsmith.io/public/caddy/stable/gpg.key -o "$work/key.asc"
     gpg --batch --dearmor -o "$work/key.gpg" "$work/key.asc"
     repo_file "$work/key.gpg" /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    curl --fail --silent --show-error --location --proto '=https' https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o "$work/caddy.list"
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --proto '=https' https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o "$work/caddy.list"
     repo_file "$work/caddy.list" /etc/apt/sources.list.d/servership-caddy.list
     apt-get update
     apt_install caddy

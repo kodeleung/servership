@@ -33,6 +33,12 @@ class FakeClient:
         self.calls.append('cleanup')
         return StepResult('cleanup', 'success')
 
+    def use_key(self, key):
+        self.identity = key.private_path
+
+    def close(self):
+        pass
+
 
 @pytest.fixture(autouse=True)
 def clear():
@@ -86,3 +92,9 @@ def test_cancel_during_failed_host_cleanup_stops_batch():
         with pytest.raises(BatchCancelled):
             run_batch([Server('bad', 'localhost'), Server('later', 'localhost')], ['docker'], KEY)
     assert len(FakeClient.instances) == 1
+
+
+def test_partial_report_preserves_completed_items():
+    with patch('servership.batch.SSHClient', FakeClient), patch('servership.batch.authorize', authorized), patch('servership.batch.verify_access', return_value=StepResult('verify', 'success')), patch.object(FakeClient, 'fetch_results', return_value=[StepResult('caddy', 'success')]):
+        results = run_batch([Server('good', 'localhost')], ['caddy', 'docker'], KEY)
+    assert any(s.stage == 'caddy' and s.status == 'success' for s in results[0].steps)

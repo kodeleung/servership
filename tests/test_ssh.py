@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from servership.models import Server
+from servership.models import KeyPair, Server, UserCancelled
 from servership.ssh import SSHClient
 
 
@@ -64,3 +64,28 @@ def test_reports_reject_invalid_and_duplicate_status(tmp_path):
     with patch('servership.ssh.subprocess.run', side_effect=download):
         with pytest.raises(ValueError):
             client.fetch_results()
+
+
+def test_remote_cancel_code_propagates():
+    client = SSHClient(Server('one', 'localhost'))
+    client.workdir = '/tmp/servership.ABC12345'
+    with patch('servership.ssh.subprocess.run', return_value=subprocess.CompletedProcess([], 130)):
+        with pytest.raises(UserCancelled):
+            client.run_root('install.sh', [])
+
+
+def test_use_key_isolates_identities_and_control_socket(tmp_path):
+    keyfile = tmp_path / 'private with space'
+    keyfile.write_text('fixture')
+    client = SSHClient(Server('one', 'example.com'))
+    effective = 'hostname example.com\nproxyjump bastion\nidentityfile /tmp/other\ncontrolmaster auto\ncontrolpath /tmp/master\n'
+    with patch('servership.ssh.subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout=effective)):
+        client.use_key(KeyPair(keyfile, 'ssh-ed25519 AAAA fixture'))
+        config = client.config_path.read_text()
+        assert '/tmp/other' not in config
+        assert '/tmp/master' not in config
+        assert 'ControlPath none' in config and 'ControlMaster no' in config
+        assert 'proxyjump bastion' in config
+        assert client.identity != keyfile
+        assert client.identity.with_name(client.identity.name + '.pub').read_text().strip() == 'ssh-ed25519 AAAA fixture'
+    client.close()
