@@ -12,10 +12,12 @@ source .venv/bin/activate
 python -m pip install .
 cp servers.example.yaml servers.yaml
 # 编辑 servers.yaml，填写自己的服务器
-servership --inventory servers.yaml
+servership
 ```
 
-也可以运行 `python -m servership --inventory servers.yaml`。缺少本机依赖时会停止并给出提示；不要在电脑上用 sudo 启动客户端。
+也可以运行 `python -m servership`。默认在当前目录先查找 `servers.yaml`，不存在时再查找 `servers.yml`；两个文件都存在时使用 `servers.yaml`。指定其他清单可运行 `servership --inventory /path/to/servers.yaml`。默认清单无效时直接报错，不会改用另一份清单。
+
+缺少本机依赖时会停止并给出提示；不要在电脑上用 sudo 启动客户端。
 
 ## 清单
 

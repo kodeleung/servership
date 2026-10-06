@@ -8,7 +8,7 @@ install_openssh() {
         return 10
     fi
     if [[ -e /etc/ssh/sshd_config ]] || command -v sshd >/dev/null; then
-        echo '已有未托管的 SSH 配置或服务，保留原状态' >&2
+        echo 'Existing unmanaged SSH configuration or service; preserving its state' >&2
         return 1
     fi
     apt-get update

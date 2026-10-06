@@ -113,15 +113,15 @@ class SSHClient:
         code = files('servership').joinpath('remote/preflight.sh').read_text()
         result = _run([*self.ssh_args(tty=True), self._root(['bash', '-c', code])])
         self.ready = result.returncode == 0
-        return StepResult('preflight', 'success' if self.ready else 'failed', '系统及 root 权限验证通过' if self.ready else f'连接、系统或提权失败（{result.returncode}）')
+        return StepResult('preflight', 'success' if self.ready else 'failed', 'System and root privileges verified' if self.ready else f'Connection, system check, or privilege escalation failed ({result.returncode})')
 
     def stage(self, public_key: str) -> None:
         if not self.ready:
-            raise RuntimeError('必须先验证服务器 root 权限')
+            raise RuntimeError('Server root privileges must be verified first')
         result = _run([*self.ssh_args(), 'umask 077; mktemp -d /tmp/servership.XXXXXXXX'], text=True, stdout=subprocess.PIPE, check=True)
         path = result.stdout.strip()
         if not WORKDIR.fullmatch(path):
-            raise RuntimeError('服务器返回了无效临时目录')
+            raise RuntimeError('Server returned an invalid temporary directory')
         self.workdir = path
         remote = Path(str(files('servership').joinpath('remote')))
         _run([*self.scp_args(), '-r', '--', str(remote), self.scp_target(path + '/')], check=True)
@@ -132,37 +132,37 @@ class SSHClient:
 
     def run_root(self, script: str, args: list[str]) -> int:
         if not self.workdir or not WORKDIR.fullmatch(self.workdir) or script not in {'authorize.sh', 'install.sh'}:
-            raise ValueError('无效远程模块或临时目录')
+            raise ValueError('Invalid remote module or temporary directory')
         command = self._root(['bash', f'{self.workdir}/remote/{script}', *args])
         return _run([*self.ssh_args(tty=True), command]).returncode
 
     def fetch_results(self, noninteractive: bool = False) -> list[StepResult]:
         if not self.workdir or not WORKDIR.fullmatch(self.workdir):
-            raise ValueError('无效临时目录')
+            raise ValueError('Invalid temporary directory')
         with tempfile.TemporaryDirectory(prefix='servership-report-') as local:
             report = Path(local) / 'result.tsv'
             _run([*self.scp_args(), *(['-o', 'BatchMode=yes'] if noninteractive else []), '--', self.scp_target(self.workdir + '/result.tsv'), str(report)], check=True)
             if report.stat().st_size > 65536:
-                raise ValueError('远程结果过大')
+                raise ValueError('Remote results are too large')
             results, stages = [], set()
             for line in report.read_text(encoding='utf-8').splitlines():
                 columns = line.split('\t')
                 if len(columns) != 3:
-                    raise ValueError('无效远程结果')
+                    raise ValueError('Invalid remote results')
                 stage, status, detail = columns
                 if stage not in SOFTWARE or status not in {'success', 'skipped', 'failed'} or stage in stages:
-                    raise ValueError('无效或重复远程状态')
+                    raise ValueError('Invalid or duplicate remote status')
                 if any(ord(c) < 32 or ord(c) == 127 for c in detail):
-                    raise ValueError('结果包含控制字符')
+                    raise ValueError('Results contain control characters')
                 stages.add(stage)
                 results.append(StepResult(stage, status, detail))
             return results
 
     def cleanup(self) -> StepResult:
         if not self.workdir:
-            return StepResult('cleanup', 'skipped', '无临时目录')
+            return StepResult('cleanup', 'skipped', 'No temporary directory')
         if not WORKDIR.fullmatch(self.workdir):
-            return StepResult('cleanup', 'failed', '拒绝清理未登记的目录')
+            return StepResult('cleanup', 'failed', 'Refusing to clean up an unregistered directory')
         # No recursive root deletion; all temporary output belongs to login user.
         try:
             command = shlex.join(['rm', '-rf', '--', self.workdir])

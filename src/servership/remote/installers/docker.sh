@@ -11,7 +11,7 @@ install_docker() {
     local conflict
     for conflict in docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc; do
         if package_installed "$conflict"; then
-            echo "已有冲突软件包，保留原安装：$conflict" >&2
+            echo "Conflicting package already installed; preserving the existing installation: $conflict" >&2
             return 1
         fi
     done

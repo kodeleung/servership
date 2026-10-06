@@ -6,11 +6,11 @@ source "$base/common.sh"
 require_root || exit 1
 trap 'exit 130' INT
 trap 'exit 143' TERM
-report=${1:?结果路径缺失}
-user=${2:?账号缺失}
+report=${1:?Results path missing}
+user=${2:?Username missing}
 shift 2
 [[ $user =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*\$?$ ]] || exit 1
-[[ ! -e $report && ! -L $report ]] || { echo '拒绝覆盖结果文件' >&2; exit 1; }
+[[ ! -e $report && ! -L $report ]] || { echo 'Refusing to overwrite the results file' >&2; exit 1; }
 for software in "$@"; do
     case $software in caddy|docker|sing-box|openssh) ;; *) exit 1;; esac
 done
@@ -21,8 +21,8 @@ IFS=: read -r _ _ uid gid _ <<< "$record"
 chown "$uid:$gid" "$report" || exit 1
 failed=0
 for software in "$@"; do
-    echo "安装检查：$software"
-    printf '%s\tfailed\t执行已开始，但尚未完成；可能已有部分变更\n' "$software" >> "$report"
+    echo "Installation check: $software"
+    printf '%s\tfailed\tExecution started but has not completed; partial changes may exist\n' "$software" >> "$report"
     # Not in an if/|| context: failures inside an installer obey errexit.
     (
         set -e
@@ -33,11 +33,11 @@ for software in "$@"; do
     )
     code=$?
     case $code in
-        0) status=success; detail='已安装并验证';;
-        10) status=skipped; detail='已满足，保留现有安装';;
-        *) status=failed; detail="安装或验证失败（$code），详见终端输出"; failed=1;;
+        0) status=success; detail='Installed and verified';;
+        10) status=skipped; detail='Already satisfied; preserving the existing installation';;
+        *) status=failed; detail="Installation or verification failed ($code); see terminal output"; failed=1;;
     esac
-    if [[ $software == sing-box && $code == 0 ]]; then detail='已安装，待配置（未启动服务）'; fi
+    if [[ $software == sing-box && $code == 0 ]]; then detail='Installed; configuration required (service not started)'; fi
     updated=$(mktemp "$(dirname "$report")/result.XXXXXXXX") || exit 1
     sed '$d' "$report" > "$updated" || exit 1
     printf '%s\t%s\t%s\n' "$software" "$status" "$detail" >> "$updated"
