@@ -17,6 +17,11 @@ def test_empty_choices():
         assert select_software() == []
 
 
+def test_gum_empty_submission_newline_is_valid():
+    with patch('servership.ui.subprocess.run', return_value=result('\n')):
+        assert select_software() == []
+
+
 def test_server_selection_preserves_inventory_order():
     servers = [Server('a', 'localhost'), Server('b', 'example.com')]
     with patch('servership.ui.subprocess.run', return_value=result('b · root@example.com:22\na · root@localhost:22\n')):

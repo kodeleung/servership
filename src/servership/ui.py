@@ -24,7 +24,7 @@ def _choose(options: list[str], header: str, multiple: bool = True) -> list[str]
         raise UserCancelled
     if result.returncode:
         raise RuntimeError(f'gum 执行失败（{result.returncode}）')
-    selected = result.stdout.splitlines()
+    selected = [line for line in result.stdout.splitlines() if line]
     if len(selected) != len(set(selected)) or any(item not in options for item in selected):
         raise ValueError('界面返回了无效选择')
     return [item for item in options if item in selected]
