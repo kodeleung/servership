@@ -55,27 +55,43 @@ def test_one_host_failure_next_continues():
         results = run_batch([Server('bad', 'localhost'), Server('good', 'localhost')], ['docker'], KEY)
     assert [r.server.name for r in results] == ['bad', 'good']
     assert FakeClient.instances[0].calls == ['preflight', 'cleanup']
-    assert FakeClient.instances[1].calls == ['preflight', 'authorize', 'install.sh', 'cleanup']
+    assert FakeClient.instances[1].calls == ['preflight', 'authorize', 'swap.sh', 'install.sh', 'cleanup']
     assert any(s.stage == 'docker' and s.status == 'not_run' for s in results[0].steps)
+    assert any(s.stage == 'swap' and s.status == 'not_run' for s in results[0].steps)
 
 
 def test_publickey_failure_no_install():
     with patch('servership.batch.SSHClient', FakeClient), patch('servership.batch.authorize', authorized), patch('servership.batch.verify_access', return_value=StepResult('verify', 'failed')):
         results = run_batch([Server('good', 'localhost')], ['docker'], KEY)
+    assert 'swap.sh' not in FakeClient.instances[0].calls
     assert 'install.sh' not in FakeClient.instances[0].calls
     assert any(s.stage == 'verify' and s.status == 'failed' for s in results[0].steps)
+    assert any(s.stage == 'swap' and s.status == 'not_run' for s in results[0].steps)
 
 
-def test_empty_software_still_authorizes():
+def test_empty_software_still_authorizes_and_configures_swap():
     with patch('servership.batch.SSHClient', FakeClient), patch('servership.batch.authorize', authorized), patch('servership.batch.verify_access', return_value=StepResult('verify', 'success')):
-        run_batch([Server('good', 'localhost')], [], KEY)
-    assert FakeClient.instances[0].calls == ['preflight', 'authorize', 'cleanup']
+        results = run_batch([Server('good', 'localhost')], [], KEY)
+    assert FakeClient.instances[0].calls == ['preflight', 'authorize', 'swap.sh', 'cleanup']
+    assert any(s.stage == 'swap' and s.status == 'success' for s in results[0].steps)
 
 
 def test_missing_report_is_failure():
     with patch('servership.batch.SSHClient', FakeClient), patch('servership.batch.authorize', authorized), patch('servership.batch.verify_access', return_value=StepResult('verify', 'success')), patch.object(FakeClient, 'fetch_results', return_value=[]):
         results = run_batch([Server('good', 'localhost')], ['docker'], KEY)
     assert any(s.status == 'failed' for s in results[0].steps)
+
+
+def test_swap_failure_skips_software():
+    def failing_swap(self, script, args):
+        self.calls.append(script)
+        return 1 if script == 'swap.sh' else 0
+
+    with patch('servership.batch.SSHClient', FakeClient), patch('servership.batch.authorize', authorized), patch('servership.batch.verify_access', return_value=StepResult('verify', 'success')), patch.object(FakeClient, 'run_root', failing_swap):
+        results = run_batch([Server('good', 'localhost')], ['docker'], KEY)
+    assert FakeClient.instances[0].calls == ['preflight', 'authorize', 'swap.sh', 'cleanup']
+    assert any(s.stage == 'swap' and s.status == 'failed' for s in results[0].steps)
+    assert any(s.stage == 'docker' and s.status == 'not_run' for s in results[0].steps)
 
 
 def test_cancel_marks_remaining_not_run():

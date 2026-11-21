@@ -55,6 +55,6 @@ def verify_access(server: Server, key: KeyPair) -> StepResult:
         host = args.pop()
         args += ['-o', 'PreferredAuthentications=publickey', '-o', 'PasswordAuthentication=no', '-o', 'KbdInteractiveAuthentication=no', host, 'true']
         rc = _run(args).returncode
-        return StepResult('verify', 'success' if rc == 0 else 'failed', 'Key login verified' if rc == 0 else 'Public key added, but key login failed; software was not installed')
+        return StepResult('verify', 'success' if rc == 0 else 'failed', 'Key login verified' if rc == 0 else 'Public key added, but key login failed; swap and software were not configured')
     finally:
         client.close()

@@ -17,9 +17,19 @@ class _ServerStopped(Exception):
 
 def _remaining(result: ServerResult, software: list[str]):
     present = {step.stage for step in result.steps}
-    for stage in ['preflight', 'authorize', 'verify', *software]:
+    for stage in ['preflight', 'authorize', 'verify', 'swap', *software]:
         if stage not in present:
             result.steps.append(StepResult(stage, 'not_run', 'A prerequisite failed or was cancelled'))
+
+
+def _configure_swap(client: SSHClient, server_name: str) -> StepResult:
+    print(f'[{server_name}] Configuring 2G swap (sudo may request your password again)', file=sys.stderr, flush=True)
+    rc = client.run_root('swap.sh', [])
+    if rc == 0:
+        return StepResult('swap', 'success', '2G swap configured')
+    if rc == 10:
+        return StepResult('swap', 'skipped', 'Already satisfied; preserving the existing swap')
+    return StepResult('swap', 'failed', f'Swap configuration failed ({rc})')
 
 
 def run_batch(servers: list[Server], software: list[str], key: KeyPair) -> list[ServerResult]:
@@ -45,6 +55,10 @@ def run_batch(servers: list[Server], software: list[str], key: KeyPair) -> list[
             if result.steps[-1].status != 'success':
                 raise _ServerStopped
             client.use_key(key)
+            stage = 'swap'
+            result.steps.append(_configure_swap(client, server.name))
+            if result.steps[-1].status == 'failed':
+                raise _ServerStopped
             if software:
                 stage = 'install'
                 print(f'[{server.name}] Installing selected software (sudo may request your password again)', file=sys.stderr, flush=True)

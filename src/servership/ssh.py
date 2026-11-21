@@ -131,7 +131,7 @@ class SSHClient:
             _run([*self.scp_args(), '--', str(public), self.scp_target(path + '/public.key')], check=True)
 
     def run_root(self, script: str, args: list[str]) -> int:
-        if not self.workdir or not WORKDIR.fullmatch(self.workdir) or script not in {'authorize.sh', 'install.sh'}:
+        if not self.workdir or not WORKDIR.fullmatch(self.workdir) or script not in {'authorize.sh', 'swap.sh', 'install.sh'}:
             raise ValueError('Invalid remote module or temporary directory')
         command = self._root(['bash', f'{self.workdir}/remote/{script}', *args])
         return _run([*self.ssh_args(tty=True), command]).returncode
