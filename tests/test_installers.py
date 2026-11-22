@@ -13,7 +13,7 @@ def dispatch(tmp_path, software):
     (remote / 'installers').mkdir(parents=True)
     shutil.copy(ROOT / 'install.sh', remote / 'install.sh')
     (remote / 'common.sh').write_text('require_root() { :; }\n')
-    for name, function, status in [('caddy', 'caddy', 1), ('docker', 'docker', 0), ('sing-box', 'sing_box', 10), ('openssh', 'openssh', 0)]:
+    for name, function, status in [('caddy', 'caddy', 1), ('docker', 'docker', 0), ('sing-box', 'sing_box', 10), ('openssh', 'openssh', 0), ('tailscale', 'tailscale', 0)]:
         (remote / 'installers' / f'{name}.sh').write_text(f'install_{function}() {{ echo {name} >> "{tmp_path}/calls"; return {status}; }}\n')
     # chown and getent are isolated stubs, not privileged production operations.
     tools = tmp_path / 'bin'
@@ -34,6 +34,13 @@ def test_failure_continues_and_status_matches(tmp_path):
     assert 'caddy\tfailed\t' in report
     assert 'docker\tsuccess\t' in report
     assert 'sing-box\tskipped\t' in report
+
+
+def test_tailscale_success_detail_mentions_up(tmp_path):
+    result, report, calls = dispatch(tmp_path, ['tailscale'])
+    assert result.returncode == 0
+    assert calls.splitlines() == ['tailscale']
+    assert 'tailscale\tsuccess\tInstalled and verified; run tailscale up to join the network' in report
 
 
 def test_empty_selection_no_installer(tmp_path):
@@ -59,6 +66,7 @@ require_service() {{ return {service_status}; }}
 caddy() {{ :; }}
 docker() {{ :; }}
 sing-box() {{ :; }}
+tailscale() {{ :; }}
 apt_install() {{ echo UNEXPECTED_APT; exit 91; }}
 systemctl() {{ echo UNEXPECTED_SERVICE_CHANGE; exit 92; }}
 {function}
@@ -89,6 +97,12 @@ def test_docker_existing_no_group_or_install_change():
     assert 'UNEXPECTED' not in result.stdout
 
 
+def test_tailscale_existing_skips_no_upgrade():
+    result = installed_module('tailscale', 'install_tailscale')
+    assert result.returncode == 10
+    assert 'UNEXPECTED' not in result.stdout
+
+
 def test_apt_lock_error_propagates():
     script = f'source "{ROOT}/common.sh"; apt-get() {{ echo "lock held" >&2; return 100; }}; apt_install fixture'
     result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
@@ -110,3 +124,20 @@ install_sing_box
     result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
     assert result.returncode == 42
     assert 'https://deb.sagernet.org/gpg.key' in result.stdout
+
+
+def test_tailscale_uses_official_repository_key():
+    script = f'''set -euo pipefail
+source "{ROOT}/common.sh"
+source "{ROOT}/installers/tailscale.sh"
+require_root() {{ :; }}
+detect_platform() {{ DIST_ID=ubuntu; DIST_CODENAME=noble; }}
+package_installed() {{ return 1; }}
+prepare_repo_tools() {{ :; }}
+command() {{ if [[ $1 == -v && $2 == tailscale ]]; then return 1; else builtin command "$@"; fi; }}
+curl() {{ printf '%s\\n' "$@"; return 42; }}
+install_tailscale
+'''
+    result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
+    assert result.returncode == 42
+    assert 'https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg' in result.stdout

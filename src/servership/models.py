@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-SOFTWARE = ('caddy', 'docker', 'sing-box', 'openssh')
+SOFTWARE = ('caddy', 'docker', 'sing-box', 'openssh', 'tailscale')
 
 
 @dataclass(frozen=True)

@@ -12,7 +12,7 @@ shift 2
 [[ $user =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*\$?$ ]] || exit 1
 [[ ! -e $report && ! -L $report ]] || { echo 'Refusing to overwrite the results file' >&2; exit 1; }
 for software in "$@"; do
-    case $software in caddy|docker|sing-box|openssh) ;; *) exit 1;; esac
+    case $software in caddy|docker|sing-box|openssh|tailscale) ;; *) exit 1;; esac
 done
 umask 077
 : > "$report"
@@ -38,6 +38,7 @@ for software in "$@"; do
         *) status=failed; detail="Installation or verification failed ($code); see terminal output"; failed=1;;
     esac
     if [[ $software == sing-box && $code == 0 ]]; then detail='Installed; configuration required (service not started)'; fi
+    if [[ $software == tailscale && $code == 0 ]]; then detail='Installed and verified; run tailscale up to join the network'; fi
     updated=$(mktemp "$(dirname "$report")/result.XXXXXXXX") || exit 1
     sed '$d' "$report" > "$updated" || exit 1
     printf '%s\t%s\t%s\n' "$software" "$status" "$detail" >> "$updated"

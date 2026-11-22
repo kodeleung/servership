@@ -7,7 +7,7 @@ Servership 在你的 macOS / Linux 电脑上运行，通过 SSH 管理多台服�
 ## 功能
 
 - **交互式批量操作**：复选框选择服务器和软件，支持全选、部分选择和空选择。
-- **常用软件安装**：支持 Caddy、Docker、sing-box 和 OpenSSH，使用官方签名软件源。
+- **常用软件安装**：支持 Caddy、Docker、sing-box、OpenSSH 和 Tailscale，使用官方签名软件源。
 - **SSH 密钥配置**：在本机生成或复用密钥，追加服务器公钥授权，并验证登录。
 - **远程提权**：root 直接执行，普通账号通过 sudo 获取权限；服务器无需安装 Python。
 - **逐台执行与结果汇总**：单台失败继续处理后续服务器，报告各步骤结果。
@@ -107,6 +107,7 @@ servers:
 | Docker | 安装 Engine、CLI、Buildx、Compose 插件并验证 daemon；不修改用户组 |
 | sing-box | 安装官方稳定包并验证版本；需自行配置和启动服务 |
 | OpenSSH | 安装 server 包、检查配置及服务；不改变端口或登录策略，不主动重启已有服务 |
+| Tailscale | 安装官方包并验证 tailscaled；需自行执行 `tailscale up` 加入网络 |
 
 已有安装满足要求时跳过；冲突或损坏状态会报告失败，不自动卸载或修复。新装 OpenSSH / sing-box 时临时阻止服务启动或重启；已有 `policy-rc.d` 会保留并报告失败。包管理器锁冲突不会通过删锁或终止其他进程解决。
 
